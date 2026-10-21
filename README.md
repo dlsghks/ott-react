@@ -18,3 +18,7 @@ You can also try [the experimental native React Compiler support in plugin-react
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 "# ott-react" 
+
+## 스포츠 라이브와 채팅
+
+`/sports` 구현, 안전한 환경변수, 데이터 출처, 테스트와 기존 Vercel 배포 절차는 [스포츠 문서](docs/sports.md)를 참고하세요.

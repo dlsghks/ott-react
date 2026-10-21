@@ -3,7 +3,7 @@ import { auth, db, googleProvider } from "../firebase/firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-export const useAuthStore = create((set, get) => ({
+export const useAuthStore = create((set) => ({
     // 사용자 정보를 저장할 변수
     user: null,
     // 사용자 안에는 아빠, 엄마, 아들, 딸 멤버에 대한 정보를 저장할 변수
@@ -19,12 +19,10 @@ export const useAuthStore = create((set, get) => ({
         try {
             // 구글 팝업 로그인
             const result = await signInWithPopup(auth, googleProvider);
-            console.log(result);
             const user = result.user;
             // firestore에 사용자 문서 확인
             const userRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userRef);
-            console.log("가져온 정보:", userDoc.data());
             // 신규 사용자이면 firestore에 저장
             if (!userDoc.exists()) {
                 const userInfo = {
@@ -49,7 +47,7 @@ export const useAuthStore = create((set, get) => ({
             return user;
         }
         catch (err) {
-            console.log("구글 로그인 에러:", err.message)
+            console.error("구글 로그인 에러:", err.code || "auth/unknown")
         }
     },
     // 로그아웃 메서드
@@ -59,7 +57,7 @@ export const useAuthStore = create((set, get) => ({
             set({ user: null, currentMember: null })
         }
         catch (err) {
-            console.log("로그아웃 에러", err.message)
+            console.error("로그아웃 에러", err.code || "auth/unknown")
         }
     }
 }));

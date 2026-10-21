@@ -1,41 +1,67 @@
 import { useEffect, useRef, useState } from "react";
-import { signInWithPopup } from "firebase/auth";
-import {
-  auth,
-  googleProvider,
-  isFirebaseConfigured,
-} from "../firebase/firebase";
-import { sampleGames, streamSource } from "../features/sports/games";
-import {
-  useGameRoom,
-  useSportsGames,
-  useSportsUser,
-} from "../features/sports/useSports";
+import { isFirebaseConfigured } from "../firebase/firebase";
+import { useLiveVideos, youtube } from "../features/sports/useLiveVideos";
+import { YoutubePlayer } from "../features/sports/YoutubePlayer";
+import { useGameRoom, useSportsUser } from "../features/sports/useSports";
+import { useAuthStore } from "../store/useAuthStore";
 import "./Sports.css";
 
-const statusLabel = {
-  live: "LIVE",
-  scheduled: "예정",
-  ended: "종료",
-  sample: "예시",
+const errorMessages = {
+  "missing-key":
+    "YouTube API 키가 설정되지 않아 실제 방송을 조회할 수 없습니다.",
+  permission:
+    "YouTube API 접근 권한이 없습니다. API 활성화와 키의 사이트 제한을 확인해 주세요.",
+  quota:
+    "YouTube API 할당량을 초과했습니다. 할당량 복구 후 자동으로 다시 조회합니다.",
+  network:
+    "라이브 검색 서버에 연결하지 못했습니다. 네트워크 연결을 확인해 주세요.",
+  "api-error": "라이브 검색 요청을 처리하지 못했습니다.",
+  "channel-unavailable":
+    "WBSC 공식 채널을 확인하지 못했습니다. 잠시 후 다시 확인해 주세요.",
 };
+const viewersLabel = (value) =>
+  value === null
+    ? "시청자 수 비공개"
+    : `시청자 ${BigInt(value).toLocaleString("ko-KR")}명`;
 
 function GameRoom({ game, user }) {
-  const isSample = game.status === "sample";
+  const [broadcastStatus, setBroadcastStatus] = useState("live");
+  const [verifyError, setVerifyError] = useState("");
   const { messages, viewerCount, error, connected, send } = useGameRoom(
     game.id,
     user,
-    !isSample,
+    true,
   );
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [actionError, setActionError] = useState("");
-  const [failedVideo, setFailedVideo] = useState(null);
   const [loggingIn, setLoggingIn] = useState(false);
+  const onGoogleLogin = useAuthStore((state) => state.onGoogleLogin);
   const list = useRef(null);
   const shouldScroll = useRef(true);
-  const source = streamSource(game.streamUrl);
-  const videoError = failedVideo === game.streamUrl;
+  useEffect(() => {
+    let active = true;
+    const timer = setInterval(async () => {
+      try {
+        const result = await youtube.verify(game.id);
+        if (active) {
+          setBroadcastStatus((previous) =>
+            previous === "ended" && result.status === "live"
+              ? previous
+              : result.status,
+          );
+          setVerifyError("");
+        }
+      } catch (error) {
+        if (active)
+          setVerifyError(errorMessages[error.code] || errorMessages.network);
+      }
+    }, 60000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [game.id]);
 
   useEffect(() => {
     if (shouldScroll.current && list.current)
@@ -46,7 +72,8 @@ function GameRoom({ game, user }) {
     setActionError("");
     setLoggingIn(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const loggedIn = await onGoogleLogin();
+      if (!loggedIn) throw new Error("login-failed");
     } catch {
       setActionError("로그인을 완료하지 못했습니다. 다시 시도해 주세요.");
     } finally {
@@ -70,70 +97,62 @@ function GameRoom({ game, user }) {
       setSending(false);
     }
   };
-  const canChat = !isSample && Boolean(user) && connected;
+  const canChat = Boolean(user) && connected;
 
   return (
     <div className="sports-room">
       <section className="sports-watch" aria-label="선택한 경기 중계">
-        <div className="sports-player" key={game.streamUrl}>
-          {source && !videoError && !isSample ? (
-            source.type === "embed" ? (
-              <iframe
-                title={`${game.away} 대 ${game.home} 야구 중계`}
-                src={source.url}
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            ) : (
-              <video
-                controls
-                playsInline
-                src={source.url}
-                onError={() => setFailedVideo(game.streamUrl)}
-                aria-label="야구 경기 중계 영상"
-              />
-            )
+        <div className="sports-player">
+          {broadcastStatus === "live" ? (
+            <YoutubePlayer
+              key={game.id}
+              videoId={game.id}
+              onEnded={() => setBroadcastStatus("ended")}
+            />
           ) : (
             <div className="sports-player-empty">
               <span className="sports-baseball" aria-hidden="true">
                 ⚾
               </span>
               <h3>
-                {isSample
-                  ? "함께 보는 야구, 함께 나누는 응원"
-                  : game.status === "scheduled"
-                    ? "경기 시작을 기다리고 있어요"
-                    : "중계 영상을 준비하고 있어요"}
+                {broadcastStatus === "ended"
+                  ? "방송이 종료되었습니다"
+                  : "시청할 수 없는 방송입니다"}
               </h3>
-              <p>
-                {isSample
-                  ? "예시 경기입니다. 실제 경기와 공식 중계가 등록되면 이곳에서 시청할 수 있어요."
-                  : videoError
-                    ? "이 영상을 재생할 수 없습니다. 제공되는 형식과 중계 상태를 확인해 주세요."
-                    : "아직 시청 가능한 중계 영상이 등록되지 않았습니다."}
-              </p>
+              <p>다른 라이브 방송을 선택하거나 원본 영상에서 확인해 주세요.</p>
             </div>
           )}
         </div>
         <div className="sports-match-info">
           <div>
-            <span className={`sports-badge ${game.status}`}>
-              {statusLabel[game.status]}
+            <span className={`sports-badge ${broadcastStatus}`}>
+              {verifyError
+                ? "상태 확인 실패"
+                : broadcastStatus === "live"
+                  ? "LIVE"
+                  : broadcastStatus === "ended"
+                    ? "종료"
+                    : "재생 불가"}
             </span>
-            <span className="sports-muted">
-              {" "}
-              {game.league} · {game.venue}
-            </span>
+            <span className="sports-muted"> {game.channel}</span>
           </div>
-          <h2>
-            {game.away} <span>vs</span> {game.home}
-          </h2>
+          <h2>{game.title}</h2>
           <p>
-            {isSample
-              ? "실제 경기 일정·점수·중계가 아닌 화면 예시입니다."
-              : `${game.awayScore} : ${game.homeScore}${game.inning ? ` · ${game.inning}` : ""}`}
+            {viewersLabel(game.viewers)} ·{" "}
+            <a
+              href={game.watchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sports-original"
+            >
+              YouTube 원본 영상 ↗
+            </a>
           </p>
+          {verifyError && (
+            <p className="sports-error" role="status">
+              {verifyError}
+            </p>
+          )}
         </div>
       </section>
       <aside className="sports-chat" aria-label="경기별 실시간 채팅">
@@ -164,8 +183,8 @@ function GameRoom({ game, user }) {
             <div className="sports-chat-empty">
               <span aria-hidden="true">💬</span>
               <p>
-                {isSample
-                  ? "실제 경기 등록 후 채팅이 열립니다."
+                {!isFirebaseConfigured
+                  ? "Firebase 설정이 없어 채팅에 연결할 수 없습니다."
                   : !user
                     ? "로그인하고 함께 응원해 보세요."
                     : connected
@@ -182,12 +201,10 @@ function GameRoom({ game, user }) {
               <div>
                 <strong>{message.name}</strong>
                 <time>
-                  {message.createdAt
-                    ?.toDate()
-                    .toLocaleTimeString("ko-KR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }) || "전송 중"}
+                  {message.createdAt?.toDate().toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }) || "전송 중"}
                 </time>
               </div>
               <p>{message.text}</p>
@@ -199,7 +216,7 @@ function GameRoom({ game, user }) {
             {actionError || error}
           </p>
         )}
-        {!user && isFirebaseConfigured && !isSample && (
+        {!user && isFirebaseConfigured && (
           <button className="sports-login" onClick={login} disabled={loggingIn}>
             {loggingIn ? "로그인 중…" : "Google 로그인하고 채팅 참여"}
           </button>
@@ -238,20 +255,49 @@ function GameRoom({ game, user }) {
   );
 }
 
-export function Sports() {
-  const { games, loading, error } = useSportsGames();
-  const user = useSportsUser();
-  const [selectedId, setSelectedId] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const shownGames = games.length ? games : sampleGames;
-  const filtered =
-    filter === "live"
-      ? shownGames.filter((game) => game.status === "live")
-      : shownGames;
-  const selected =
-    filtered.find((game) => game.id === selectedId) || filtered[0];
-  const liveCount = games.filter((game) => game.status === "live").length;
+function VideoCards({ videos, selectedId, onSelect, ranked = false }) {
+  return (
+    <div className="sports-game-grid">
+      {videos.map((video, index) => (
+        <button
+          type="button"
+          key={video.id}
+          className={`sports-game-card ${selectedId === video.id ? "selected" : ""}`}
+          aria-pressed={selectedId === video.id}
+          onClick={() => onSelect(video)}
+        >
+          <div className="sports-card-top">
+            <span className="sports-badge live">
+              {ranked ? `TOP ${index + 1}` : "LIVE"}
+            </span>
+            <span>{viewersLabel(video.viewers)}</span>
+          </div>
+          <img
+            className="sports-thumbnail"
+            src={video.thumbnail}
+            alt=""
+            loading="lazy"
+          />
+          <h3 className="sports-video-title">{video.title}</h3>
+          <div className="sports-card-bottom">
+            <span>{video.channel}</span>
+            <span>{selectedId === video.id ? "시청 중" : "시청하기 →"}</span>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
 
+export function Sports() {
+  const [scope, setScope] = useState("all");
+  const { videos, loading, error, checkedAt, truncated } = useLiveVideos(scope);
+  const user = useSportsUser();
+  const [selection, setSelection] = useState(null);
+  const selected = selection
+    ? videos.find((video) => video.id === selection.id) || selection
+    : videos[0];
+  const top = videos.filter((video) => video.viewers !== null).slice(0, 5);
   return (
     <main className="sports-page">
       <div className="sports-inner">
@@ -262,22 +308,52 @@ export function Sports() {
               스포츠 <span>야구</span>
             </h1>
             <p className="sports-muted">
-              경기의 모든 순간, 함께 응원하는 즐거움
+              지금 열리는 야구 라이브, 함께 나누는 응원
             </p>
           </div>
           <span className="sports-live-count">
-            <span /> 실시간 {liveCount}경기
+            <span /> 검색된 라이브 {videos.length}개
           </span>
         </div>
-        {(error || !isFirebaseConfigured) && (
+        <div className="sports-toolbar">
+          <div className="sports-filters" aria-label="채널 필터">
+            {[
+              ["all", "전체 채널"],
+              ["wbsc", "WBSC 공식 야구"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={scope === value}
+                onClick={() => {
+                  setScope(value);
+                  setSelection(null);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="sports-muted">
+            5분 캐시 · 자동 갱신
+            {checkedAt
+              ? ` · 확인 ${new Date(checkedAt).toLocaleTimeString("ko-KR")}`
+              : ""}
+          </p>
+        </div>
+        {!isFirebaseConfigured && (
           <p className="sports-setup-notice" role="status">
-            {error ||
-              "아직 실시간 서비스가 연결되지 않았습니다. 아래는 예시 경기이며 중계·채팅은 제공되지 않습니다."}
+            Firebase 설정이 없어 응원 채팅을 사용할 수 없습니다. 영상 검색과
+            시청은 별도로 이용할 수 있습니다.
           </p>
         )}
         {loading ? (
           <p className="sports-loading" role="status">
-            경기 목록을 불러오고 있습니다…
+            실제 라이브 방송을 검색하고 공개·임베드·방송 상태를 확인하고
+            있습니다…
+          </p>
+        ) : error ? (
+          <p className="sports-setup-notice" role="alert">
+            {errorMessages[error] || errorMessages["api-error"]}
           </p>
         ) : (
           <>
@@ -288,77 +364,64 @@ export function Sports() {
                 user={user}
               />
             )}
-            <section className="sports-schedule" aria-label="야구 경기 목록">
-              <div className="sports-schedule-heading">
-                <h2>
-                  야구 경기 <span>{filtered.length}</span>
-                </h2>
-                <div className="sports-filters">
-                  <button
-                    aria-pressed={filter === "all"}
-                    onClick={() => setFilter("all")}
-                  >
-                    전체
-                  </button>
-                  <button
-                    aria-pressed={filter === "live"}
-                    onClick={() => setFilter("live")}
-                  >
-                    LIVE
-                  </button>
-                </div>
-              </div>
-              {!games.length && (
-                <p className="sports-muted sports-sample-note">
-                  아래 6개 경기는 화면 예시입니다. 실제 일정이나 생중계 여부를
-                  나타내지 않습니다.
-                </p>
-              )}
-              {filtered.length ? (
-                <div className="sports-game-grid">
-                  {filtered.map((game) => (
-                    <button
-                      key={game.id}
-                      className={`sports-game-card ${selected?.id === game.id ? "selected" : ""}`}
-                      aria-pressed={selected?.id === game.id}
-                      onClick={() => setSelectedId(game.id)}
-                    >
-                      <div className="sports-card-top">
-                        <span className={`sports-badge ${game.status}`}>
-                          {statusLabel[game.status]}
-                        </span>
-                        <span>{game.league}</span>
-                      </div>
-                      <div className="sports-teams">
-                        <strong>{game.away}</strong>
-                        <span>
-                          {game.status === "sample"
-                            ? "VS"
-                            : `${game.awayScore} : ${game.homeScore}`}
-                        </span>
-                        <strong>{game.home}</strong>
-                      </div>
-                      <div className="sports-card-bottom">
-                        <span>
-                          {game.venue}
-                          {game.inning ? ` · ${game.inning}` : ""}
-                        </span>
-                        <span>
-                          {selected?.id === game.id ? "선택됨" : "경기 보기 →"}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="sports-loading">
-                  현재 진행 중인 경기가 없습니다. 전체 경기 목록을 확인해
-                  주세요.
-                </p>
-              )}
-            </section>
+            {!videos.length ? (
+              <p className="sports-loading" role="status">
+                현재 확인된 야구 경기 라이브가 없습니다. 예시 방송은 표시하지
+                않습니다.
+              </p>
+            ) : (
+              <>
+                <section className="sports-schedule" aria-label="인기 TOP 5">
+                  <div className="sports-schedule-heading">
+                    <h2>
+                      인기 TOP 5 <span>{top.length}개</span>
+                    </h2>
+                  </div>
+                  <p className="sports-muted sports-sample-note">
+                    검색된 방송 중 공개된 동시 시청자 수 기준입니다. 시청자 수
+                    비공개 방송은 순위에서 제외합니다.
+                  </p>
+                  {top.length ? (
+                    <VideoCards
+                      videos={top}
+                      selectedId={selected?.id}
+                      onSelect={setSelection}
+                      ranked
+                    />
+                  ) : (
+                    <p className="sports-loading">
+                      시청자 수를 공개한 방송이 없어 순위를 표시할 수 없습니다.
+                    </p>
+                  )}
+                </section>
+                <section
+                  className="sports-schedule"
+                  aria-label="전체 라이브 목록"
+                >
+                  <div className="sports-schedule-heading">
+                    <h2>
+                      전체 라이브 목록 <span>{videos.length}개</span>
+                    </h2>
+                  </div>
+                  <VideoCards
+                    videos={videos}
+                    selectedId={selected?.id}
+                    onSelect={setSelection}
+                  />
+                </section>
+              </>
+            )}
           </>
         )}
+        <p className="sports-source-note">
+          출처: YouTube Data API v3 · 공개/임베드 허용 및 실제 방송 시작·미종료
+          조건을 확인한 검색 결과입니다. 제목·태그로 명확한
+          게임·하이라이트·해설·분석 방송을 제외합니다. 영상 내용과 지역별 시청
+          가능 여부까지 보장하지는 않습니다.
+          {truncated
+            ? " 검색 한도(150개 후보)에 도달하여 일부 방송이 누락될 수 있습니다."
+            : " YouTube 검색에 노출된 결과이며 모든 야구 중계를 보장하지 않습니다."}
+        </p>
       </div>
     </main>
   );

@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ADD this sportsRooms block to existing rules. Keep existing users/sportsGames rules.
+    match /sportsRooms/{videoId} {
+      function participant() {
+        return request.auth != null && videoId.matches('^[A-Za-z0-9_-]{11}$');
+      }
+      allow read, write: if false;
+      match /messages/{messageId} {
+        allow read: if participant();
+        allow create: if participant()
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'createdAt'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 300
+          && request.resource.data.text.matches('[\\s\\S]*[^\\s][\\s\\S]*')
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+      match /viewers/{sessionId} {
+        allow read: if participant();
+        allow create: if participant()
+          && request.resource.data.keys().hasOnly(['uid', 'lastSeen'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.lastSeen == request.time;
+        allow update: if participant()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'lastSeen'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.lastSeen == request.time;
+        allow delete: if participant() && resource.data.uid == request.auth.uid;
+      }
+    }
+  }
+}

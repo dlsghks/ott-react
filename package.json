@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:sports": "node --test src/features/sports/youtube.test.js",
+    "test:sports:rules": "node --test tests/sports.firestore.test.js",
+    "test:sports:emulator": "npx --yes --package firebase-tools@15.34.0 firebase emulators:exec --only firestore --project demo-ott-sports --config firebase.sports.test.json \"npm run test:sports:rules\"",
+    "test:sports:browser": "node --test tests/sports.browser.test.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -22,6 +26,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
@@ -31,6 +36,10 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
     "globals": "^17.12.0",
+    "playwright-core": "^1.64.1",
     "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }

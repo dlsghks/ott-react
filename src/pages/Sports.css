@@ -440,3 +440,69 @@
     font-size: 20px;
   }
 }
+.sports-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 24px;
+}
+.sports-thumbnail {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 14px 0;
+}
+.sports-video-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+.sports-original {
+  color: #94eab0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sports-source-note {
+  color: #99aea1;
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 32px;
+}
+.sports-video-shell,
+.sports-yt-target,
+.sports-yt-target iframe {
+  width: 100%;
+  height: 100%;
+}
+.sports-video-shell {
+  position: relative;
+  min-width: 0;
+}
+.sports-playback-error {
+  position: absolute;
+  inset: auto 12px 12px;
+  padding: 12px;
+  background: #221514ed;
+  color: #ffcbcb;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.sports-match-info h2 {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .sports-title-row {
+    flex-wrap: wrap;
+  }
+  .sports-toolbar .sports-muted {
+    font-size: 12px;
+  }
+  .sports-card-top {
+    flex-wrap: wrap;
+  }
+}

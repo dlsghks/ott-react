@@ -13,37 +13,6 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { auth, db } from "../../firebase/firebase";
-import { normalizeGame } from "./games";
-
-export function useSportsGames() {
-  const [state, setState] = useState({
-    games: [],
-    loading: Boolean(db),
-    error: "",
-  });
-  useEffect(() => {
-    if (!db) return;
-    return onSnapshot(
-      query(collection(db, "sportsGames"), orderBy("order"), limit(50)),
-      (snapshot) => {
-        setState({
-          games: snapshot.docs
-            .map((item) => normalizeGame(item.id, item.data()))
-            .filter(Boolean),
-          loading: false,
-          error: "",
-        });
-      },
-      () =>
-        setState({
-          games: [],
-          loading: false,
-          error: "경기 목록을 연결하지 못했습니다. 잠시 후 다시 방문해 주세요.",
-        }),
-    );
-  }, []);
-  return state;
-}
 
 export function useSportsUser() {
   const [user, setUser] = useState(() => auth?.currentUser ?? null);
@@ -64,7 +33,7 @@ export function useGameRoom(gameId, user, enabled) {
 
   useEffect(() => {
     if (!db || !enabled || !uid) return;
-    const root = ["sportsGames", gameId];
+    const root = ["sportsRooms", gameId];
     const stopMessages = onSnapshot(
       query(
         collection(db, ...root, "messages"),
@@ -102,7 +71,7 @@ export function useGameRoom(gameId, user, enabled) {
   useEffect(() => {
     if (!db || !enabled || !uid) return;
     // Each tab has its own record, so closing one tab cannot disconnect another.
-    const viewer = doc(collection(db, "sportsGames", gameId, "viewers"));
+    const viewer = doc(collection(db, "sportsRooms", gameId, "viewers"));
     let active = true;
     const heartbeat = () => {
       setNow(Date.now());
@@ -130,7 +99,7 @@ export function useGameRoom(gameId, user, enabled) {
     const trimmed = text.trim();
     if (!trimmed || trimmed.length > 300)
       throw new Error("메시지를 1~300자로 입력해 주세요.");
-    await addDoc(collection(db, "sportsGames", gameId, "messages"), {
+    await addDoc(collection(db, "sportsRooms", gameId, "messages"), {
       uid: user.uid,
       name: (user.displayName || "야구 팬").slice(0, 40),
       text: trimmed,
