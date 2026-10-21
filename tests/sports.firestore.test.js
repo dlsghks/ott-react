@@ -57,7 +57,7 @@ test(
       );
       await assertFails(addDoc(messages(alice), payload("alice", "   ")));
       await assertFails(
-        addDoc(messages(alice, "not-a-video"), payload("alice")),
+        addDoc(messages(alice, "short"), payload("alice")),
       );
       await assertFails(
         addDoc(messages(alice), { ...payload("alice"), admin: true }),
