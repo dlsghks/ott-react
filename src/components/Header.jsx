@@ -28,6 +28,11 @@ const mainMenu = [
         id: 5,
         menu: "찜 리스트",
         path: "/heart"
+    },
+    {
+        id: 6,
+        menu: "스포츠",
+        path: "/sports"
     }
 ]
 
@@ -57,10 +62,10 @@ export const Header = () => {
 
     return (
         <header className={`fixed w-full py-5 z-1000 ${isHome ? "bg-transparent" : "bg-green-100"}`}>
-            <div className="inner flex justify-between items-center">
-                <div className="header-left flex gap-10 items-center">
+            <div className="inner flex flex-wrap gap-4 px-4 justify-between items-center">
+                <div className="header-left flex flex-wrap gap-4 lg:gap-10 items-center">
                     <h1 className="logo"><Link to="/"><img src="/logo.png" alt="" className='w-40 ' /></Link></h1>
-                    <ul className='flex gap-5'>
+                    <ul className='flex flex-wrap gap-3 lg:gap-5'>
                         {mainMenu.map((menu) => (
                             <li key={menu.id}>
                                 <Link className={`${isHome ? "text-white" : "text-black"}`} to={menu.path}>{menu.menu}</Link>

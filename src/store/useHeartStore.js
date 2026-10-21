@@ -30,7 +30,7 @@ export const useHeartStore = create((set, get) => ({
     // }, GPT한테 물어본.ver
 
     onFetchHearts: async () => {
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
         const currentMember = useAuthStore.getState().currentMember;
 
         if (!user || !currentMember) return;
@@ -50,7 +50,7 @@ export const useHeartStore = create((set, get) => ({
 
     // 찜 추가
     onAddHearts: async (item) => {
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
         const currentMember = useAuthStore.getState().currentMember;
 
         if (!user || !currentMember) return;
@@ -90,7 +90,7 @@ export const useHeartStore = create((set, get) => ({
 
     // 삭제
     onRemoveHearts: async (id) => {
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
         const currentMember = useAuthStore.getState().currentMember;
 
         if (!user || !currentMember) return;

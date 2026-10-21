@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Merge this sportsGames block into existing rules. Do not replace other rules.
+    match /sportsGames/{gameId} {
+      function signedIn() { return request.auth != null; }
+      function validGame() {
+        return exists(/databases/$(database)/documents/sportsGames/$(gameId));
+      }
+      allow read: if true;
+      // Game schedules, scores and licensed streams are written only by a trusted server/admin.
+      allow write: if false;
+      match /messages/{messageId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && validGame()
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'createdAt'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 40
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 300
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+      match /viewers/{sessionId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && validGame()
+          && request.resource.data.keys().hasOnly(['uid', 'lastSeen'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.lastSeen == request.time;
+        allow update: if signedIn() && resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'lastSeen'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.lastSeen == request.time;
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      }
+    }
+  }
+}
