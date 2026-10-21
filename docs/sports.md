@@ -10,7 +10,7 @@
 - `videos.list`: `part=snippet,status,liveStreamingDetails`. `privacyStatus=public`, `embeddable=true`, `liveBroadcastContent=live`, 실제 `actualStartTime` 존재, `actualEndTime` 미존재 조건을 모두 확인합니다. 삭제·미공개·시작 전·종료 방송은 표시하지 않습니다.
 - 제목·태그에서 명확한 게임/시뮬레이션/하이라이트/다시보기/해설/분석/입중계/라이브 스코어/리액션/소프트볼 등을 제외하고 야구 관련성도 확인합니다. 메타데이터 필터이므로 모든 영상의 실제 내용이나 중계권을 직접 확인한 것은 아닙니다. 불분명한 영상이 남을 가능성이 있습니다.
 - 동시 시청자 수는 `liveStreamingDetails.concurrentViewers`만 사용합니다. 일반 누적 조회 수(`statistics.viewCount`)를 동시 시청자 수로 쓰지 않습니다. 미제공 값은 ‘시청자 수 비공개’로 표시하며 순위에서 제외합니다. 제공된 실제 숫자로 인기 TOP 5를 정렬하며 5개보다 적으면 있는 개수만 표시합니다.
-- WBSC 필터는 `channels.list(forHandle=@WBSC)`로 정확한 핸들의 채널 ID를 조회한 뒤 `search.list.channelId`와 결과 채널 ID를 모두 확인합니다. 표시 이름만 WBSC인 다른 채널을 신뢰하지 않습니다. WBSC의 소프트볼/게임 방송에도 같은 제외 필터를 적용합니다. 이번 환경에서는 WBSC 사이트와 YouTube 페이지 접근이 403으로 차단되어 **공식 사이트의 채널 링크와 운영 API의 핸들 응답은 독립 검증하지 못했습니다**. 배포 전 아래 공식 사이트의 YouTube 링크와 `@WBSC` 일치를 확인해야 합니다.
+- WBSC 필터는 `channels.list(forHandle=@WBSC)`로 정확한 핸들의 채널 ID를 조회한 뒤 `search.list.channelId`와 결과 채널 ID를 모두 확인합니다. 표시 이름만 WBSC인 다른 채널을 신뢰하지 않습니다. WBSC의 소프트볼/게임 방송에도 같은 제외 필터를 적용합니다. 이번 환경에서는 WBSC 사이트와 YouTube 페이지 접근이 403으로 차단되어 **공식 사이트의 채널 링크는 독립 검증하지 못했습니다**. 이후 실제 운영 API의 `channels.list`가 핸들에 대해 1개 채널을 반환하고 이어진 채널 한정 라이브 검색이 0개를 반환하는 것은 확인했습니다. 공식 사이트 링크와의 최종 교차 확인은 별도로 남아 있습니다.
 
 공식 참고 링크: [search.list](https://developers.google.com/youtube/v3/docs/search/list), [videos.list](https://developers.google.com/youtube/v3/docs/videos/list), [channels.list](https://developers.google.com/youtube/v3/docs/channels/list), [WBSC](https://www.wbsc.org/en), [WBSC YouTube 핸들](https://www.youtube.com/@WBSC). 초기에는 웹 문서 접근이 차단되었으나 네트워크 설정 반영 후 `search.list`·`videos.list` 공식 문서도 HTTP 200으로 확인했습니다. WBSC 사이트와 YouTube 핸들 페이지는 여전히 접근이 거부되었습니다.
 
@@ -81,14 +81,14 @@ npm run test:sports:emulator
 - **모의 데이터 단위 테스트 9개**: 라이브 조건, 제외 필터, 실제 수치 정렬/비공개 처리, API 검색 옵션과 재검증, 5분 캐시/중복 요청, WBSC 채널 ID, 오류 분류, 페이지 제한, 종료/삭제 상태 통과.
 - **Chromium 브라우저 테스트 5개**: 실제 앱의 키 누락 상태 + 모의 API/플레이어로 TOP 5/전체 6개/5개 미만 개수/필터/영상 선택/원본 링크/빈 결과/권한/할당량 안내 확인. 320/390/768/1024/1440px 화면 넘침과 헤더 겹침 없음. **모의 플레이어 테스트는 실제 재생 검증이 아닙니다. 가상 시계로 5분 자동 갱신과 플레이어 종료 이벤트 안내도 확인했습니다.**
 - **에뮬레이터**: 초기 다운로드 차단 이후 네트워크 접근이 가능해져 재실행했습니다. 통합 테스트 **1개 통과**: 두 인증 사용자의 메시지 송수신, 실시간 구독, 영상별 격리, presence 수명주기와 비인증/위조 UID/길이/공백/추가 필드/위조 시간/메시지 수정·삭제/타인 presence 조작 거부를 확인했습니다. 예상되는 PERMISSION_DENIED 로그는 거부 검증 결과입니다. 이 결과를 운영 Firebase 검증으로 간주하지 않습니다.
-- **운영 API**: 키가 없으며 무키 조회는 HTTP 403으로 거부됨. 실제 라이브 목록과 WBSC 운영 응답은 미검증입니다.
-- **운영 영상/채팅**: 실제 영상 재생·두 계정 운영 채팅·운영 규칙은 설정/접근 미확보로 미검증입니다.
+- **운영 API**: 로컬에는 키가 없지만 기존 Vercel 배포의 실제 설정을 그대로 사용한 브라우저 요청은 성공했습니다. 최신 검증에서 `search.list` HTTP 200/후보 27개, `videos.list` HTTP 200/27개, 검증 후 화면 **13개/인기 TOP 5**를 확인했습니다. WBSC `channels.list` HTTP 200/1개와 채널 한정 `search.list` HTTP 200/0개를 확인했습니다. 수치는 검증 시점의 결과이며 변동합니다. 키는 로컬 설정이나 Git으로 복사하지 않았습니다.
+- **운영 화면/영상/채팅**: 실제 운영 HTML/JS/API 응답을 인증서 검증이 켜진 HTTP 클라이언트로 전달하여 화면 렌더링, 실제 목록·필터·영상 선택, `/sports` 새로고침, 390/1440px 가로 넘침 없음, 런타임 오류 없음까지 확인했습니다. 모의 API나 모의 플레이어를 쓰지 않았습니다. 다만 네이티브 Chromium의 TLS 오류 때문에 YouTube 플레이어 로드/실제 재생은 확인하지 못했습니다. 운영 Firebase 로그인/두 계정 채팅/운영 규칙도 미검증입니다. Firebase CLI 로그인은 없고 ADC 파일은 빈 설정이라 운영 규칙 관리 인증을 확보하지 못했습니다.
 
 ## 기존 Vercel 배포
 
 GitHub 저장소 공개 홈페이지 링크에서 기존 사이트 `https://ott-react-eta.vercel.app`를 확인했습니다. 새 프로젝트는 만들지 않습니다. `vercel.json`은 `/sports` 등 SPA 경로를 `/index.html`로 rewrite하여 직접 접속·새로고침을 지원하고 정적 자산 요청은 유지합니다.
 
-기존 프로젝트에 Vite 환경변수를 입력하고 Git 연동의 production branch가 `main`인지 확인해야 합니다. `main` 푸시는 연동이 활성화되어 있으면 배포를 촉발할 수 있지만 **성공한 운영 배포의 증거는 아닙니다**. 초기에는 네트워크 접근이 차단되었지만 이후 GitHub 커밋 상태에서 **Vercel success**와 운영 `/sports`의 **HTTP 200**을 확인했습니다. `main`에 반영된 커밋의 기존 Git 연동 배포가 수행된 증거입니다. Vercel 토큰/로컬 프로젝트 연결 파일은 없으며 별도 프로젝트나 직접 CLI 배포는 만들지 않았습니다. Chromium은 외부 사이트에서 `ERR_CERT_AUTHORITY_INVALID`를 반환해 **운영 화면 렌더링·브라우저 새로고침·실제 재생 검증은 미완료**입니다. TLS 검증을 끄지 않았습니다. 환경 OS가 신뢰하는 CA 하나를 별도 테스트 NSS 저장소에 등록해도 해결되지 않아 해당 테스트 저장소는 원상 복구했습니다. 시스템 CA 전체 등록은 신뢰 범위 확대를 이유로 자동 승인 검토가 거부하여 실행하지 않았습니다.
+기존 프로젝트에 Vite 환경변수를 입력하고 Git 연동의 production branch가 `main`인지 확인해야 합니다. `main` 푸시는 연동이 활성화되어 있으면 배포를 촉발할 수 있지만 **성공한 운영 배포의 증거는 아닙니다**. 초기에는 네트워크 접근이 차단되었지만 이후 GitHub 커밋 상태에서 **Vercel success**와 운영 `/sports`의 **HTTP 200**을 확인했습니다. `main`에 반영된 커밋의 기존 Git 연동 배포가 수행된 증거입니다. Vercel 토큰/로컬 프로젝트 연결 파일은 없으며 별도 프로젝트나 직접 CLI 배포는 만들지 않았습니다. Chromium은 외부 사이트에서 `ERR_CERT_AUTHORITY_INVALID`를 반환합니다. 이 제약은 실제 운영 사이트와 API 리소스만 TLS 검증 HTTP 클라이언트로 전달하는 방식으로 좁혀 화면 렌더링·새로고침을 확인했습니다. **네이티브 TLS 접속과 실제 영상 재생은 미검증**입니다. TLS 검증을 끄지 않았습니다. 환경 OS가 신뢰하는 CA 하나를 별도 테스트 NSS 저장소에 등록해도 해결되지 않아 해당 테스트 저장소는 원상 복구했습니다. 시스템 CA 전체 등록은 신뢰 범위 확대를 이유로 자동 승인 검토가 거부하여 실행하지 않았습니다.
 
 접근이 열리면 Vercel의 새 커밋 Production 배포가 Ready인지 확인하고 `/sports` 직접 접속·새로고침 HTTP 200, 렌더링, 실제 API, 원본 영상과 앱 내 재생, 두 계정 채팅/격리를 각각 검사해야 합니다. 이 체크리스트 완료 전에는 운영 기능 완료로 보고하지 않습니다.
 
@@ -102,3 +102,13 @@ curl --fail --silent --output /dev/null --write-out '%{http_code}\n' https://ott
 ```
 
 상태 확인과 HTTP 응답은 운영의 실제 영상/채팅 성공과 별개입니다. 실제 값이 설정된 배포에서 정상 TLS를 유지하는 브라우저로 위의 운영 검증 체크리스트를 완료해야 합니다.
+
+### 운영 리소스의 안전한 UI/API 검증
+
+```sh
+npm run check:sports:production
+```
+
+`scripts/check-sports-production.js`는 기존 `HTTPS_PROXY`/`HTTP_PROXY` 경로와 `ignoreHTTPSErrors: false`인 HTTP 클라이언트를 사용합니다. 기존 사이트와 실제 YouTube Data API의 응답만 브라우저로 전달합니다. 모의 API/영상/키를 넣거나 TLS 검증을 끄지 않습니다. 키는 실제 운영 브라우저의 요청 헤더 내부에서만 전달되며 추출·저장하지 않습니다. 응답 코드·결과 개수·안전한 오류 사유만 출력합니다. 오류 객체/요청 헤더는 출력하지 않고 종료 시 진행 중인 라우트를 정리합니다. 브라우저 전용 TLS/영상 재생이나 Google 로그인 세션까지 해결하는 도구는 아닙니다. 실제 API 호출이므로 프로젝트 할당량을 소비합니다.
+
+검증 중 초기 임시 스크립트의 처리되지 않은 예외 로그에 브라우저용 YouTube API 키가 포함된 사고가 있었습니다. 이후 예외 헤더 출력 경로를 차단한 위 스크립트로 다시 검증했습니다. 키 값은 코드·문서·Git에 넣지 않았습니다. 소유자는 안전한 Google Cloud/Vercel 환경 설정에서 해당 키를 교체하고 YouTube Data API v3 및 운영 HTTP 리퍼러 제한을 확인해야 합니다.

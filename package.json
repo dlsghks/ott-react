@@ -11,7 +11,8 @@
     "test:sports": "node --test src/features/sports/youtube.test.js",
     "test:sports:rules": "node --test tests/sports.firestore.test.js",
     "test:sports:emulator": "npx --yes --package firebase-tools@15.34.0 firebase emulators:exec --only firestore --project demo-ott-sports --config firebase.sports.test.json \"npm run test:sports:rules\"",
-    "test:sports:browser": "node --test tests/sports.browser.test.js"
+    "test:sports:browser": "node --test tests/sports.browser.test.js",
+    "check:sports:production": "node scripts/check-sports-production.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
